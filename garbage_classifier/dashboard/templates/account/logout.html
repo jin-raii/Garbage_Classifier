@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load allauth i18n %}
+{% block head_title %}
+    {% trans "Sign Out" %}
+{% endblock head_title %}
+{% block content %}
+    <div class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen py-10 px-4 flex items-center justify-center">
+        <div class="container mx-auto max-w-md">
+            <div class="card glass-card shadow-xl p-6 rounded-lg">
+                <div class="card-body">
+                    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800 title-gradient">
+                        {% trans "Sign Out" %}
+                    </h1>
+                    <p class="text-lg text-gray-700 text-center mb-8">
+                        {% trans 'Are you sure you want to sign out?' %}
+                    </p>
+                    <form method="post" action="{% url 'account_logout' %}" class="text-center">
+                        {% csrf_token %}
+                        {{ redirect_field }}
+                        <button type="submit" class="inline-block px-6 py-3 bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 text-white font-semibold rounded-full shadow-md transition duration-300 ease-in-out">
+                            <i class="fas fa-sign-out-alt mr-2"></i>
+                            {% trans 'Sign Out' %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function updateTokenDisplay(remainingTokens, totalTokens) {
+            const tokenDisplay = document.getElementById('token-display');
+            if (tokenDisplay) {
+                tokenDisplay.textContent = `Tokens: ${remainingTokens} / ${totalTokens}`;
+            } else {
+                 console.warn('Token display element not found.');
+            }
+        }
+    </script>
+    <script>
+        updateTokenDisplay({{ remaining_tokens }}, 100);
+    </script>
+{% endblock content %}

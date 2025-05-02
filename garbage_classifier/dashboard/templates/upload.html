@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Upload and Classify Image{% endblock %}
+
+{% block content %}
+<div class="container mt-5 pt-5">
+    <div class="row justify-content-center">
+        {% if messages %}
+            <div class="col-md-8 mb-4">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="col-md-8">
+            <div class="card shadow-lg rounded-lg">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0 d-flex align-items-center">
+                        <i class="fas fa-trash-alt me-2"></i> Garbage Classification
+                        <span class="ms-auto badge bg-warning text-dark">
+                            <i class="fas fa-coins"></i> Cost: {{ token_cost }} tokens
+                        </span>
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% if remaining_tokens < token_cost %}
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fas fa-exclamation-triangle"></i> You need at least {{ token_cost }} tokens to classify an image.
+                            <a href="{% url 'buy_tokens' %}" class="btn btn-sm btn-warning ms-2">
+                                <i class="fas fa-coins"></i> Get More Tokens
+                            </a>
+                        </div>
+                    {% endif %}
+
+                    <div class="tokens-display mb-3">
+                        <p><i class="fas fa-coins text-warning"></i> Your Tokens: <span class="badge bg-primary">{{ remaining_tokens }}</span></p>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data" id="uploadForm">
+                        {% csrf_token %}
+                        <div class="mb-3 drop-area" id="dropArea">
+                            <label for="id_image" class="form-label visually-hidden">Image</label>
+                            {{ form.image }}
+                            <p class="drop-message">Drag and drop your image here or <span class="browse-button">browse</span></p>
+                        </div>
+                        <div id="imagePreviewContainer" class="image-preview-container" style="display: none;">
+                            <img id="imagePreview" src="#" alt="Uploaded Image Preview" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
+                            <button type="button" class="btn btn-sm btn-danger mt-2" id="clearImageRemove">Remove</button>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" id="classifyButton" {% if remaining_tokens < token_cost %}disabled{% endif %}>
+                            <i class="fas fa-magic"></i> Classify Image
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {% if predicted_class %}
+                <div class="card shadow-lg rounded-lg mt-4">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="card-title mb-0"><i class="fas fa-check-circle"></i> Classification Result</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 text-center mb-3">
+                                <h4 class="text-secondary">Uploaded Image:</h4>
+                                <img src="{{ uploaded_image_url }}" alt="Uploaded Image" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
+                            </div>
+                            <div class="col-md-6">
+                                <div class="result-details">
+                                    <h4 class="mb-3 text-primary">Results</h4>
+                                    <div class="mb-3">
+                                        <p class="mb-1"><strong>Predicted Class:</strong></p>
+                                        <div class="badge bg-primary text-white p-2 fs-5">{{ predicted_class }}</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <p class="mb-1"><strong>Confidence:</strong></p>
+                                        <div class="badge bg-info text-white p-2 fs-5">{{ confidence }}</div>
+                                    </div>
+                                    {% if recycling_type %}
+                                        <div class="mb-3">
+                                            <p class="mb-1"><strong>Recycling Type:</strong></p>
+                                            <div class="badge {% if recycling_type == 'recyclable' %}bg-success{% else %}bg-danger{% endif %} text-white p-2 fs-5">
+                                                {{ recycling_type|title }}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('id_image');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const clearImageButton = document.getElementById('clearImageRemove');
+        const uploadForm = document.getElementById('uploadForm');
+        const classifyButton = document.getElementById('classifyButton');
+
+        // Prevent defaults for all drag events
+        ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop area when file is dragged over
+        ["dragenter", "dragover"].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ["dragleave", "drop"].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropArea.classList.add('highlight');
+        }
+
+        function unhighlight(e) {
+            dropArea.classList.remove('highlight');
+        }
+
+        // Handle file drop
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                fileInput.files = files;
+                previewFile(files[0]);
+            }
+        }
+
+        // Make the drop area clickable
+        dropArea.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // Show preview when file is selected
+        fileInput.addEventListener('change', function() {
+            previewFile(this.files[0]);
+        });
+
+        function previewFile(file) {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                
+                reader.onloadend = function() {
+                    imagePreview.src = reader.result;
+                    imagePreviewContainer.style.display = 'block';
+                    dropArea.style.display = 'none';
+                    
+                    // Store the image in sessionStorage for persistence
+                    sessionStorage.setItem('uploadedImage', reader.result);
+                }
+                
+                reader.readAsDataURL(file);
+            } else if (file) {
+                alert("Please upload an image file.");
+                fileInput.value = '';
+                imagePreviewContainer.style.display = 'none';
+            } else {
+                imagePreviewContainer.style.display = 'none';
+            }
+        }
+
+        // Clear selected image
+        clearImageButton.addEventListener('click', function() {
+            fileInput.value = '';
+            imagePreview.src = '#';
+            imagePreviewContainer.style.display = 'none';
+            dropArea.style.display = 'flex';
+            sessionStorage.removeItem('uploadedImage');
+        });
+
+        // Handle form submission
+        uploadForm.addEventListener('submit', function(event) {
+            // Check if user has enough tokens
+            const userTokens = parseInt('{{ remaining_tokens|default:"0" }}');  // Parse as integer
+            const tokenCost = parseInt('{{ token_cost|default:"40" }}');        // Parse as integer
+            
+            if (isNaN(userTokens) || isNaN(tokenCost)) {
+                console.error("Token values are not valid numbers.");
+                event.preventDefault(); // Prevent form submission to avoid errors
+                alert("Error: Invalid token values. Please contact support."); //Inform user
+                return;
+            }
+
+            if (userTokens < tokenCost) {
+                event.preventDefault();
+                alert(`You need at least ${tokenCost} tokens to classify an image.`);
+                return;
+            }
+            
+            // Check if image is selected
+            if (!fileInput.files || fileInput.files.length === 0) {
+                event.preventDefault();
+                alert('Please select an image first.');
+                return;
+            }
+            
+            classifyButton.disabled = true;
+            classifyButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Classifying...';
+        });
+        
+        // Check if we have a stored image from previous upload
+        const storedImage = sessionStorage.getItem('uploadedImage');
+        if (storedImage && !imagePreviewContainer.style.display) {
+            imagePreview.src = storedImage;
+            imagePreviewContainer.style.display = 'block';
+            dropArea.style.display = 'none';
+        }
+    });
+</script>
+
+{% endblock %}

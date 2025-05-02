@@ -1,0 +1,345 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+    <div class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen py-10 px-4">
+        <div class="container mx-auto max-w-80p">
+            <div class="card bg-white shadow-xl p-6 mb-6">
+                <h1 class="text-3xl font-bold mb-8 text-center title-gradient">
+                    <i class="fas fa-globe-americas mr-2"></i>
+                    My Location & Air Quality
+                </h1>
+
+                <div class="card glass-card mb-6 overflow-hidden">
+                    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-3">
+                        <h2 class="text-xl font-semibold text-white flex items-center">
+                            <span class="section-icon aqi-icon">
+                                <i class="fas fa-wind"></i>
+                            </span>
+                            Air Quality Index (AQI)
+                        </h2>
+                    </div>
+                    <div class="p-6 bg-white">
+                        <div class="gauge mb-4 flex justify-center">
+                            <div class="gauge-body">
+                                <div class="gauge-fill" id="aqi-gauge"></div>
+                                <div class="gauge-cover">
+                                    <span id="aqi-value" class="text-3xl font-bold text-center">...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <span id="aqi-text" class="text-lg font-medium px-4 py-2 rounded-full inline-block"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card glass-card mb-6 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-cyan-600 px-4 py-3">
+                        <h2 class="text-xl font-semibold text-white flex items-center">
+                            <span class="section-icon location-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </span>
+                            Location Information
+                        </h2>
+                    </div>
+                    <div class="p-6 bg-white">
+                        <div class="data-grid mb-4 grid gap-4">
+                            <div class="data-label flex items-center justify-start">
+                                <i class="fas fa-city text-emerald-500 mr-2"></i>
+                                <div class="font-semibold text-gray-700">Location: <span id="location-name" class="data-value text-gray-900 font-medium"> Loading...</span></div>
+                                
+                            </div>
+
+                            <div class="data-label flex items-center justify-start">
+                                <i class="fas fa-compass text-emerald-500 mr-2"></i>
+                                 <div class="font-semibold text-gray-700">Latitude: <span id="latitude" class="data-value text-gray-900 font-medium"> Loading...</span></div >
+                            </div>
+                            
+
+                            <div class="data-label flex items-center justify-start">
+                                <i class="fas fa-compass text-emerald-500 mr-2"></i>
+                                <div class="font-semibold text-gray-700">Longitude: <span id="longitude" class="data-value text-gray-900 font-medium">Loading...</span></div>
+                                
+                            </div>
+                            
+                        </div>
+                        <div id="map" class="h-56 w-full rounded-lg shadow-md overflow-hidden mt-4"></div>
+                    </div>
+                </div>
+
+                <div class="card glass-card mb-6 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-cyan-600 px-4 py-3">
+                        <h2 class="text-xl font-semibold text-white flex items-center">
+                            <span class="section-icon weather-icon">
+                                <i class="fas fa-cloud-sun"></i>
+                            </span>
+                            Weather Information
+                        </h2>
+                    </div>
+                    <div class="p-6 bg-white">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="col-span-2 sm:col-span-1 bg-blue-50 rounded-xl p-4 flex flex-col items-center justify-center">
+                                <i class="fas fa-temperature-high text-4xl text-blue-500 mb-2"></i>
+                                <span class="text-sm text-blue-700 font-medium">Temperature</span>
+                                <span id="temperature" class="text-2xl font-bold text-blue-800">Loading...</span>
+                            </div>
+
+                            <div class="col-span-2 sm:col-span-1 bg-blue-50 rounded-xl p-4 flex flex-col items-center justify-center">
+                                <i class="fas fa-tint text-4xl text-blue-500 mb-2"></i>
+                                <span class="text-sm text-blue-700 font-medium">Humidity</span>
+                                <span id="humidity" class="text-2xl font-bold text-blue-800">Loading...</span>
+                            </div>
+
+                            <div class="col-span-2 bg-blue-50 rounded-xl p-4 flex flex-col items-center justify-center">
+                                <i class="fas fa-cloud text-4xl text-blue-500 mb-2"></i>
+                                <span class="text-sm text-blue-700 font-medium">Conditions</span>
+                                <span id="weather-description" class="text-2xl font-bold text-blue-800 text-center">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="error-message" class="hidden p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 font-medium mb-6">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <span id="error-text"></span>
+                </div>
+
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center justify-center">
+                        <i class="fas fa-info-circle text-gray-700 mr-2"></i>
+                        Disclaimer
+                    </h3>
+                    <p class="text-gray-600 text-sm text-center">
+                        The air quality data is an estimate and may not be entirely accurate.
+                        Consult official sources for critical health decisions.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const locationNameElement = document.getElementById('location-name');
+            const latitudeElement = document.getElementById('latitude');
+            const longitudeElement = document.getElementById('longitude');
+            const aqiValueElement = document.getElementById('aqi-value');
+            const aqiTextElement = document.getElementById('aqi-text');
+            const errorMessageElement = document.getElementById('error-message');
+            const temperatureElement = document.getElementById('temperature');
+            const weatherDescriptionElement = document.getElementById('weather-description');
+            const humidityElement = document.getElementById('humidity');
+            const mapElement = document.getElementById('map');
+
+            const openWeatherApiKey = '965c2660acce7a7d32741ba59c1f2b46';
+            const apiUrl = 'https://api.openweathermap.org/data/2.5/weather';
+            const aqiUrl = 'https://api.openweathermap.org/data/2.5/air_pollution';
+
+            let map;
+            let userLocationMarker;
+
+            function updateAQIGauge(value) {
+                const rotation = Math.min(value / 500 * 180, 180);
+                document.getElementById('aqi-gauge').style.transform = `rotate(${rotation}deg)`;
+
+                let textClass = '';
+                let textColor = '';
+
+                if (value <= 50) {
+                    textClass = 'bg-green-100 text-green-800';
+                    textColor = '#22c55e';
+                } else if (value <= 100) {
+                    textClass = 'bg-yellow-100 text-yellow-800';
+                    textColor = '#eab308';
+                } else if (value <= 150) {
+                    textClass = 'bg-orange-100 text-orange-800';
+                    textColor = '#f97316';
+                } else if (value <= 200) {
+                    textClass = 'bg-red-100 text-red-800';
+                    textColor = '#ef4444';
+                } else if (value <= 300) {
+                    textClass = 'bg-purple-100 text-purple-800';
+                    textColor = '#7e22ce';
+                } else {
+                    textClass = 'bg-purple-900 text-white';
+                    textColor = '#581c87';
+                }
+
+                const aqiText = document.getElementById('aqi-text');
+                aqiText.className = '';
+                aqiText.classList.add('text-lg', 'font-medium', 'px-4', 'py-2', 'rounded-full', 'inline-block');
+                aqiText.classList.add(...textClass.split(' '));
+
+                document.getElementById('aqi-value').style.color = textColor;
+            }
+
+            function getLocationAndAQI() {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const { latitude, longitude } = position.coords;
+                            latitudeElement.textContent = latitude.toFixed(4);
+                            longitudeElement.textContent = longitude.toFixed(4);
+
+                            initMap(latitude, longitude);
+
+                            fetch(`${apiUrl}?lat=${latitude}&lon=${longitude}&appid=${openWeatherApiKey}&units=metric`)
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error(`HTTP error! status: ${response.status}`);
+                                    }
+                                    return response.json();
+                                })
+                                .then(weatherData => {
+                                    locationNameElement.textContent = weatherData.name + ", " + weatherData.sys.country;
+                                    temperatureElement.textContent = weatherData.main.temp + " °C";
+                                    weatherDescriptionElement.textContent = weatherData.weather[0].description;
+                                    humidityElement.textContent = weatherData.main.humidity + "%";
+
+                                    fetch(`${aqiUrl}?lat=${latitude}&lon=${longitude}&appid=${openWeatherApiKey}`)
+                                        .then(response => {
+                                            if (!response.ok) {
+                                                throw new Error(`HTTP error! status: ${response.status}`);
+                                            }
+                                            return response.json();
+                                        })
+                                        .then(aqiData => {
+                                            if (aqiData.list && aqiData.list.length > 0) {
+                                                const aqi = aqiData.list[0].main.aqi;
+                                                aqiValueElement.textContent = aqi;
+                                                updateAQIGauge(aqi);
+                                                const aqiInfo = getAqiText(aqi);
+                                                aqiTextElement.textContent = aqiInfo.text;
+                                                setAqiColor(aqi, aqiValueElement, aqiTextElement);
+                                            } else {
+                                                aqiValueElement.textContent = 'N/A';
+                                                aqiTextElement.textContent = 'AQI Data Not Available';
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error('Error fetching AQI data:', error);
+                                            aqiValueElement.textContent = 'N/A';
+                                            aqiTextElement.textContent = 'AQI Data Not Available';
+                                            errorMessageElement.textContent = 'Error fetching AQI data. Please check your connection and try again.';
+                                            errorMessageElement.classList.remove('hidden');
+                                        });
+                                })
+                                .catch(error => {
+                                    console.error('Error fetching weather data:', error);
+                                    locationNameElement.textContent = 'Location Not Found';
+                                    errorMessageElement.textContent = 'Error fetching location data. Please check your connection and try again.';
+                                    errorMessageElement.classList.remove('hidden');
+                                    temperatureElement.textContent = 'N/A';
+                                    weatherDescriptionElement.textContent = 'N/A';
+                                    humidityElement.textContent = 'N/A';
+                                });
+
+                        },
+                        (error) => {
+                            let message = 'An error occurred while retrieving your location: ';
+                            switch (error.code) {
+                                case error.PERMISSION_DENIED:
+                                    message += 'User denied the request for Geolocation.';
+                                    break;
+                                case error.POSITION_UNAVAILABLE:
+                                    message += 'Location information is unavailable.';
+                                    break;
+                                case error.TIMEOUT:
+                                    message += 'The request to get user location timed out.';
+                                    break;
+                                default:
+                                    message += 'Unknown error.';
+                            }
+                            errorMessageElement.textContent = message;
+                            errorMessageElement.classList.remove('hidden');
+                            locationNameElement.textContent = 'Location Not Found';
+                            latitudeElement.textContent = 'N/A';
+                            longitudeElement.textContent = 'N/A';
+                            aqiValueElement.textContent = 'N/A';
+                            temperatureElement.textContent = 'N/A';
+                            weatherDescriptionElement.textContent = 'N/A';
+                            humidityElement.textContent = 'N/A';
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 300000
+                        }
+                    );
+                } else {
+                    errorMessageElement.textContent = 'Geolocation is not supported by this browser.';
+                    errorMessageElement.classList.remove('hidden');
+                    locationNameElement.textContent = 'Location Not Found';
+                    latitudeElement.textContent = 'N/A';
+                    longitudeElement.textContent = 'N/A';
+                    aqiValueElement.textContent = 'N/A';
+                    temperatureElement.textContent = 'N/A';
+                    humidityElement.textContent = 'N/A';
+                }
+            }
+
+            function getAqiText(aqi) {
+                if (aqi === 1) {
+                    return { text: 'Good', color: 'text-green-500' };
+                } else if (aqi === 2) {
+                    return { text: 'Fair', color: 'text-yellow-500' };
+                } else if (aqi === 3) {
+                    return { text: 'Moderate', color: 'text-orange-500' };
+                } else if (aqi === 4) {
+                    return { text: 'Poor', color: 'text-red-500' };
+                } else if (aqi === 5) {
+                    return { text: 'Very Poor', color: 'text-purple-500' };
+                } else {
+                    return { text: 'Unknown', color: 'text-gray-500' };
+                }
+            }
+
+            function setAqiColor(aqiValue, aqiValueElement, aqiTextElement) {
+                const aqiInfo = getAqiText(aqiValue);
+                aqiValueElement.className = `text-3xl font-bold ${aqiInfo.color} text-center`;
+                aqiTextElement.className = `text-lg font-medium ${aqiInfo.color} text-center`;
+                aqiTextElement.textContent = aqiInfo.text;
+            }
+
+            function initMap(latitude, longitude) {
+                if (!map) {
+                    map = L.map(mapElement).setView([latitude, longitude], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(map);
+
+                    fetch(`${apiUrl}?lat=${latitude}&lon=${longitude}&appid=${openWeatherApiKey}&units=metric`)
+                        .then(response => response.json())
+                        .then(weatherData => {
+                            const locationName = weatherData.name + ", " + weatherData.sys.country;
+                            userLocationMarker = L.marker([latitude, longitude]).addTo(map)
+                                .bindPopup(locationName).openPopup();
+                        })
+                        .catch(error => {
+                            console.error("Error fetching weather data for location name:", error);
+                            userLocationMarker = L.marker([latitude, longitude]).addTo(map)
+                                .bindPopup("Current Location").openPopup();
+                        });
+                }
+                else {
+                    map.setView([latitude, longitude], 13);
+                    userLocationMarker.setLatLng([latitude, longitude]);
+
+                     fetch(`${apiUrl}?lat=${latitude}&lon=${longitude}&appid=${openWeatherApiKey}&units=metric`)
+                        .then(response => response.json())
+                        .then(weatherData => {
+                            const locationName = weatherData.name + ", " + weatherData.sys.country;
+                            userLocationMarker.bindPopup(locationName).openPopup();
+                        })
+                        .catch(error => {
+                            console.error("Error fetching weather data for location name:", error);
+                            userLocationMarker.bindPopup("Current Location").openPopup();
+                        });
+                }
+            }
+
+            getLocationAndAQI();
+        });
+    </script>
+{% endblock %}

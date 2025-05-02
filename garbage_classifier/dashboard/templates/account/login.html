@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load allauth i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans "Login" %}{% endblock %}
+
+{% block content %}
+    <div class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen py-10 px-4 flex items-center justify-center">
+        <div class="container mx-auto max-w-md">
+            <div class="card glass-card shadow-xl p-6 rounded-lg">
+                <div class="card-body">
+                    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800 title-gradient">
+                        {% trans "Login" %}
+                    </h1>
+                    {% if form.errors %}
+                        <ul class="errorlist mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                            {% for field in form %}
+                                {% if field.errors %}
+                                    {% for error in field.errors %}
+                                        <li>{{ field.label }}: {{ error|escape }}</li>
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                            {% if form.non_field_errors %}
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error|escape }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        </ul>
+                    {% endif %}
+
+                    <form method="POST" action="{% url 'account_login' %}" class="form-horizontal">
+                        {% csrf_token %}
+                        {% for field in form %}
+                            <div class="mb-4">
+                                {{ field|as_crispy_field }}
+                            </div>
+                        {% endfor %}
+                        <button class="w-full inline-block px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-full shadow-md transition duration-300 ease-in-out" type="submit">
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            {% trans "Login" %}
+                        </button>
+                        <div class="mt-4 text-center">
+                            <a href="{% url 'account_reset_password' %}" class="text-blue-600 hover:text-blue-800 transition duration-200">
+                                {% trans "Forgot Password?" %}
+                            </a>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-8">
+                        <p class="text-gray-700">
+                            {% blocktrans %}
+                                If you have not created an account yet, you can
+                                <a href="{{ signup_url }}" class="text-green-600 hover:text-green-800 transition duration-200 font-semibold">sign up here</a>.
+                            {% endblocktrans %}
+                        </p>
+                        {% include "socialaccount/snippets/login.html" %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function updateTokenDisplay(remainingTokens, totalTokens) {
+            const tokenDisplay = document.getElementById('token-display');
+            if (tokenDisplay) {
+                tokenDisplay.textContent = `Tokens: ${remainingTokens} / ${totalTokens}`;
+            } else {
+                 console.warn('Token display element not found.');
+            }
+        }
+    </script>
+    <script>
+        updateTokenDisplay({{ remaining_tokens }}, 100);
+    </script>
+{% endblock %}

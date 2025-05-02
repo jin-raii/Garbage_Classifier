@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load allauth i18n %}
+{% load crispy_forms_tags %}
+
+{% block head_title %}
+    {% trans "Sign Up" %}
+{% endblock head_title %}
+
+{% block content %}
+    <div class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen py-10 px-4 flex items-center justify-center">
+        <div class="container mx-auto max-w-md">
+            <div class="card glass-card shadow-xl p-6 rounded-lg">
+                <div class="card-body">
+                    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800 title-gradient">
+                        {% trans "Sign Up" %}
+                    </h1>
+                    <p class="text-lg text-gray-700 text-center mb-8">
+                        {% blocktrans with provider_name=account.get_provider.name site_name=site.name %}
+                            You are about to use your {{ provider_name }} account to login to {{ site_name }}.
+                            As a final step, please complete the following form:
+                        {% endblocktrans %}
+                    </p>
+
+                    {% url 'socialaccount_signup' as action_url %}
+                    <form method="post" action="{{ action_url }}" class="space-y-4">
+                        {% csrf_token %}
+                        {% for field in form %}
+                            <div class="mb-4">
+                                {{ field|as_crispy_field }}
+                                {% if field.errors %}
+                                    <p class="text-red-500 text-sm mt-1">
+                                        {{ field.errors|striptags }}
+                                    </p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        {{ redirect_field }}
+                        <button type="submit" class="w-full inline-block px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-semibold rounded-full shadow-md transition duration-300 ease-in-out">
+                            <i class="fas fa-user-plus mr-2"></i>
+                            {% trans "Sign Up" %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function updateTokenDisplay(remainingTokens, totalTokens) {
+            const tokenDisplay = document.getElementById('token-display');
+            if (tokenDisplay) {
+                tokenDisplay.textContent = `Tokens: ${remainingTokens} / ${totalTokens}`;
+            } else {
+                 console.warn('Token display element not found.');
+            }
+        }
+    </script>
+    <script>
+        updateTokenDisplay({{ remaining_tokens }}, 100);
+    </script>
+{% endblock content %}
