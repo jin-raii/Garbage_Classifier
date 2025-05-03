@@ -1,4 +1,4 @@
-### Garbage Classification Kaggle Link : [a link](https://www.kaggle.com/code/jinrai/gragbage-classifier)
+### Garbage Classification Kaggle Link : [Notebook Link](https://www.kaggle.com/code/jinrai/gragbage-classifier)
 
 # Garbage Classification App
 
