@@ -1,4 +1,5 @@
 ### Garbage Classification Kaggle Link : [Notebook Link](https://www.kaggle.com/code/jinrai/gragbage-classifier)
+### Model Link : [Drive Link](https://drive.google.com/drive/folders/1GslR2Hw9k7YF1Y6zhIgcd0adAcmAM85A?usp=drive_link)
 
 # Garbage Classification App
 
