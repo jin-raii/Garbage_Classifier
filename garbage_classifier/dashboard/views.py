@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 
 from .forms import UploadImageForm
 from PIL import Image
@@ -14,7 +15,11 @@ from tensorflow.keras.models import load_model
 from django.utils import timezone
 from .models import UserProfile
 
-model_path = os.path.join(settings.BASE_DIR, 'dashboard/mobileNet_model/', 'garbage_test.h5')
+from dotenv import load_dotenv
+
+load_dotenv()
+
+model_path = os.path.join(settings.BASE_DIR, 'dashboard/model/', 'garbage_model_fixed.keras')
 print(f"Model loading from: {os.path.join(settings.BASE_DIR, 'dashboard/mobileNet_model', 'garbage_test.h5')}")
 model = load_model(model_path)
 class_names = [
@@ -32,33 +37,6 @@ class_names = [
     'white-glass'
 ]
 
-
-def predict_image(image_file, model, class_names):
-
-    print(f'Model input shape: {model.layers[0].input_shape}')
-    try:
-        img = Image.open(image_file).convert('RGB')
-        print('Image shape: ', img.size)
-        resized_img = img.resize((224, 224))
-        print('Resized image : ', resized_img.size)
-        img_arr = np.array(resized_img) / 255.0
-        img_array = np.expand_dims(img_arr, axis=0)
-        print(f'Input array shape: {img_array.shape}')
-        prediction = model.predict(img_array)
-        predicted_class_index = np.argmax(prediction)
-        confidence = prediction[0][predicted_class_index]
-
-        predicted_class_name = class_names[predicted_class_index]
-        print(f'Raw prediction: {prediction}')
-        print(f'Predicted class index: {predicted_class_index}')
-        print(f'Predicted class name: {predicted_class_name}')
-        print(f'Confidence score: {confidence * 100:.2f}%')
-
-        return predicted_class_name, confidence
-    except Exception as e:
-        print(f"Error during prediction: {e}")
-        return "Error", 0.0
-
 recycling_dict = {
     'clothes': 'recyclable',
     'plastic': 'non-recyclable',
@@ -74,12 +52,26 @@ recycling_dict = {
     'cardboard': 'non-recyclable'
 }
 
-
 TOKEN_COST = 40
+WEATHER_API_URL = 'https://api.openweathermap.org/data/2.5/weather'
+
+def predict_image(image_file, model, class_names):
+    try:
+        img = Image.open(image_file).convert('RGB')
+        resized_img = img.resize((256, 256))
+        img_arr = np.array(resized_img) / 255.0
+        img_array = np.expand_dims(img_arr, axis=0)
+        prediction = model.predict(img_array)
+        predicted_class_index = np.argmax(prediction)
+        confidence = prediction[0][predicted_class_index]
+        predicted_class_name = class_names[predicted_class_index]
+        return predicted_class_name, confidence
+    except Exception as e:
+        print(f"Error during prediction: {e}")
+        return "Error", 0.0
 
 @login_required
 def upload_image(request):
-    # Check for monthly token reset
     user_profile = UserProfile.objects.get(user=request.user)
     now = timezone.now().date()
     if now.month > user_profile.last_token_reset.month or now.year > user_profile.last_token_reset.year:
@@ -91,28 +83,20 @@ def upload_image(request):
     confidence = None
     uploaded_image_url = None
     form = UploadImageForm()
-    
 
-        
     if request.method == 'POST':
-        
         if user_profile.tokens < TOKEN_COST:
             messages.error(request, f"You need at least {TOKEN_COST} tokens to classify an image. Please purchase more tokens.")
             return redirect('buy_tokens')
-            
+
         form = UploadImageForm(request.POST, request.FILES)
         if form.is_valid():
             try:
                 image_file = form.cleaned_data['image']
-                
-               
                 predicted_class_temp, confidence_temp = predict_image(image_file, model, class_names)
-                
-                # Deduct tokens only after successful prediction
                 user_profile.tokens -= TOKEN_COST
                 user_profile.save()
-                
-                # Save the uploaded image
+
                 file_extension = os.path.splitext(image_file.name)[1]
                 unique_filename = f"{uuid.uuid4()}{file_extension}"
                 file_path = os.path.join(settings.MEDIA_ROOT, unique_filename)
@@ -122,18 +106,15 @@ def upload_image(request):
                     for chunk in image_file.chunks():
                         destination.write(chunk)
 
-               
                 predicted_class = predicted_class_temp
                 confidence = f'{confidence_temp * 100:.2f}%'
                 uploaded_image_url = file_url
-                
-                # Display success message
+
                 messages.success(request, f"Image classified successfully! You have {user_profile.tokens} tokens remaining.")
-                
+
             except Exception as e:
                 messages.error(request, f"Error processing your image: {str(e)}")
 
-    # Pass token information to the template
     context = {
         'form': form,
         'predicted_class': predicted_class,
@@ -144,7 +125,6 @@ def upload_image(request):
         'recycling_type': recycling_dict.get(predicted_class, '') if predicted_class else '',
     }
     return render(request, 'upload.html', context)
-
 
 @login_required
 def profile(request):
@@ -164,50 +144,73 @@ def buy_tokens(request):
     }
     return render(request, 'dashboard/buy_token.html', context)
 
-def get_user_location_from_ip(request):
+def get_weather_data(latitude, longitude):
+    api_key = os.getenv('OPENWEATHERMAP_API_KEY')
+    params = {
+        'lat': latitude,
+        'lon': longitude,
+        'appid': api_key,
+        'units': 'metric'
+    }
     try:
-        ip_address = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR'))
-        response = requests.get(f'http://ip-api.com/json/{ip_address}')
+        response = requests.get(WEATHER_API_URL, params=params)
         response.raise_for_status()
-        location_data = response.json()
-        latitude = location_data.get('lat')
-        longitude = location_data.get('lon')
-        return latitude, longitude
+        return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error getting location from IP: {e}")
-        return None, None
+        print(f"Error fetching weather data: {e}")
+        return {}
     except json.JSONDecodeError:
-        print("Error decoding location JSON.")
-        return None, None
+        print("Error decoding weather JSON.")
+        return {}
+    return {}
 
 def get_aqi_data(latitude, longitude):
-    api_key = settings.OPENWEATHERMAP_API_KEY
-    if latitude is not None and longitude is not None and api_key:
-        api_url = f'https://api.openweathermap.org/data/2.5/air_pollution?lat={latitude}&lon={longitude}&appid={api_key}' # corrected variable name
-        try:
-            response = requests.get(api_url)
-            response.raise_for_status()
-            aqi_data = response.json()
-            aqi_value = aqi_data.get('list', [{}])[0].get('main', {}).get('aqi')
-            return aqi_value
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching AQI data: {e}")
-        except json.JSONDecodeError:
-            print("Error decoding AQI JSON.")
-    return None
+    api_key = os.getenv('OPENWEATHERMAP_API_KEY')
+    api_url = f'https://api.openweathermap.org/data/2.5/air_pollution?lat={latitude}&lon={longitude}&appid={api_key}'
+    try:
+        response = requests.get(api_url)
+        response.raise_for_status()
+        aqi_data = response.json()
+        aqi_value = aqi_data.get('list', [{}])[0].get('main', {}).get('aqi')
+        components = aqi_data.get('list', [{}])[0].get('components', {})
+        return {'aqi': aqi_value, 'components': components}
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching AQI data: {e}")
+    except json.JSONDecodeError:
+        print("Error decoding AQI JSON.")
+    return {}
 
 @login_required
 def location_and_aqi(request):
-    latitude, longitude = get_user_location_from_ip(request)
-    aqi_value = get_aqi_data(latitude, longitude)
+    latitude_str = request.GET.get('latitude')
+    longitude_str = request.GET.get('longitude')
 
-    user_profile = UserProfile.objects.get(user=request.user) 
-    remaining_tokens = user_profile.tokens  
+    if latitude_str and longitude_str:
+        try:
+            latitude = float(latitude_str)
+            longitude = float(longitude_str)
+            aqi_data = get_aqi_data(latitude, longitude)
+            weather_data = get_weather_data(latitude, longitude)
 
-    context = {
-        'latitude': latitude,
-        'longitude': longitude,
-        'aqi_value': aqi_value,
-        'remaining_tokens': remaining_tokens,  
-    }
-    return render(request, 'location_aqi.html', context)
+            user_profile = UserProfile.objects.get(user=request.user)
+            remaining_tokens = user_profile.tokens
+
+            data = {
+                'latitude': latitude,
+                'longitude': longitude,
+                'aqi_value': aqi_data.get('aqi'),
+                'aqi_components': aqi_data.get('components'),
+                'remaining_tokens': remaining_tokens,
+                'temperature': weather_data.get('main', {}).get('temp'),
+                'weather_description': weather_data.get('weather', [{}])[0].get('description'),
+                'humidity': weather_data.get('main', {}).get('humidity'),
+                'location_name': weather_data.get('name') + ", " + weather_data.get('sys', {}).get('country') if weather_data.get('name') else None,
+            }
+            return JsonResponse(data)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid latitude or longitude.'}, status=400)
+    else:
+        context = {
+            'error': 'Location not provided by the browser.'
+        }
+        return render(request, 'location_aqi.html', context, status=400)

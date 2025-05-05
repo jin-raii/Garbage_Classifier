@@ -29,7 +29,8 @@ urlpatterns = [
     path('accounts/', include('allauth.socialaccount.urls')),
     path('', views.location_and_aqi, name='location_aqi'),
 
-    # path('upload/', views.upload_image, name='upload_image'), 
+    path('upload/', views.upload_image, name='upload_image'), 
+    path('location_aqi/', views.location_and_aqi, name='location_aqi')
 
 
 ]
